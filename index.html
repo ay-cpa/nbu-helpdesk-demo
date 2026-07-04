@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NBU ITヘルプデスク一次対応Bot — デモ</title>
+<meta property="og:title" content="NBU ITヘルプデスク一次対応Bot — デモ" />
+<meta property="og:description" content="FAQを根拠に24時間一次対応し、対象外は担当者へエスカレーションするBotのデモ" />
+<style>
+  :root { --navy:#1F3864; --blue:#2E75B6; --line:#e3e6ea; --userbg:#e8f0fe; --botbg:#f4f6f8; --green:#1E7145; --amber:#8a5a00; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif; color:#1a1a1a; background:#eceef1; }
+  .wrap { max-width:820px; margin:0 auto; height:100vh; display:flex; flex-direction:column; background:#fff; }
+  header { background:var(--navy); color:#fff; padding:12px 18px; display:flex; align-items:center; gap:10px; }
+  header .hash { opacity:.6; font-size:20px; }
+  header h1 { font-size:16px; margin:0; font-weight:600; }
+  header .sub { font-size:12px; opacity:.75; margin-left:2px; }
+  header .badge { background:#ffd54a; color:#4a3500; font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px; margin-left:6px; }
+  header .mode { margin-left:auto; font-size:11px; padding:3px 9px; border-radius:12px; background:rgba(255,255,255,.15); }
+  header .gear { cursor:pointer; opacity:.85; font-size:18px; background:none; border:none; color:#fff; padding:0 2px; }
+  .notice { background:#fff8e1; color:#6b4e00; font-size:12px; padding:6px 18px; border-bottom:1px solid #f0e2b0; }
+  .chat { flex:1; overflow-y:auto; padding:16px 18px; }
+  .row { display:flex; margin:10px 0; gap:10px; }
+  .row.user { justify-content:flex-end; }
+  .avatar { width:30px; height:30px; border-radius:6px; flex:none; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; }
+  .avatar.bot { background:var(--blue); }
+  .avatar.user { background:#8a8f99; }
+  .bubble { max-width:78%; padding:10px 13px; border-radius:12px; font-size:14px; line-height:1.65; white-space:pre-wrap; word-break:break-word; }
+  .user .bubble { background:var(--userbg); border:1px solid #d6e4fb; }
+  .bot .bubble { background:var(--botbg); border:1px solid var(--line); }
+  .bubble .src { display:block; margin-top:6px; font-size:12px; color:#5a6472; }
+  .bubble .name { font-size:11px; color:#6b7280; margin-bottom:3px; font-weight:600; }
+  .esc { border:1px solid #f0c36d; background:#fff6e6; border-radius:12px; padding:10px 13px; font-size:13px; max-width:78%; }
+  .esc .t { font-weight:700; color:var(--amber); margin-bottom:4px; }
+  .esc .card { background:#fff; border:1px solid #efe0bf; border-radius:8px; padding:8px 10px; margin-top:8px; font-size:12px; color:#3a3a3a; line-height:1.6; }
+  .esc .chan { color:#185fa5; font-weight:600; }
+  .feedback { display:flex; gap:8px; margin-top:8px; }
+  .feedback button { font-size:12px; border:1px solid var(--line); background:#fff; border-radius:14px; padding:4px 12px; cursor:pointer; }
+  .feedback button:hover { background:#f0f3f6; }
+  .chips { padding:8px 18px; display:flex; flex-wrap:wrap; gap:7px; border-top:1px solid var(--line); background:#fafbfc; }
+  .chips span { font-size:12px; color:#6b7280; width:100%; }
+  .chip { font-size:12.5px; border:1px solid #cfd6de; background:#fff; border-radius:16px; padding:5px 12px; cursor:pointer; color:#2a3b52; }
+  .chip:hover { background:#eef3f9; border-color:var(--blue); }
+  .inputbar { display:flex; gap:8px; padding:12px 18px; border-top:1px solid var(--line); }
+  .inputbar input { flex:1; font-size:14px; padding:10px 12px; border:1px solid #cfd6de; border-radius:8px; outline:none; }
+  .inputbar input:focus { border-color:var(--blue); }
+  .inputbar button { background:var(--navy); color:#fff; border:none; border-radius:8px; padding:0 18px; font-size:14px; cursor:pointer; }
+  .inputbar button:hover { background:#2a4a80; }
+  .settings { display:none; padding:12px 18px; background:#f7f9fb; border-bottom:1px solid var(--line); font-size:13px; }
+  .settings.open { display:block; }
+  .settings label { display:block; margin:8px 0 3px; color:#3a4655; font-weight:600; }
+  .settings input, .settings select { width:100%; padding:7px 9px; border:1px solid #cfd6de; border-radius:6px; font-size:13px; background:#fff; }
+  .settings .rowf { display:flex; align-items:center; gap:8px; margin-top:8px; }
+  .settings .rowf input { width:auto; }
+  .settings .test { margin-top:10px; display:flex; align-items:center; gap:10px; }
+  .settings .test button { background:var(--blue); color:#fff; border:none; border-radius:6px; padding:7px 14px; font-size:13px; cursor:pointer; }
+  .settings .status { font-size:12px; }
+  .settings .status.ok { color:var(--green); }
+  .settings .status.ng { color:#b3261e; }
+  .settings .hint { color:#7a828c; font-size:11.5px; margin-top:8px; line-height:1.5; }
+  .typing { font-size:13px; color:#8a8f99; }
+  footer { font-size:11px; color:#9aa0a8; text-align:center; padding:6px; border-top:1px solid var(--line); background:#fafbfc; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="hash">#</span>
+    <h1>it-helpdesk</h1>
+    <span class="badge">DEMO</span>
+    <span class="sub">NBU 一次対応Bot</span>
+    <span class="mode" id="modeBadge">照合モード</span>
+    <button class="gear" title="設定" onclick="toggleSettings()">⚙</button>
+  </header>
+
+  <div class="settings" id="settings">
+    <div class="rowf">
+      <input type="checkbox" id="useLLM" onchange="saveCfg()" />
+      <span>本物のLLMで回答する（OpenRouter経由・FAQに基づく生成）。オフのときはナレッジ照合で回答します。</span>
+    </div>
+    <label>モデル</label>
+    <select id="modelSel" onchange="onModelSel()">
+      <option value="anthropic/claude-3.5-sonnet">anthropic/claude-3.5-sonnet（高精度）</option>
+      <option value="openai/gpt-4o-mini">openai/gpt-4o-mini（安価・高速）</option>
+      <option value="google/gemini-flash-1.5">google/gemini-flash-1.5（安価・高速）</option>
+      <option value="anthropic/claude-3-haiku">anthropic/claude-3-haiku（安価）</option>
+      <option value="__custom">カスタム入力…</option>
+    </select>
+    <input type="text" id="modelCustom" placeholder="例：provider/model-name" style="display:none; margin-top:6px;" oninput="saveCfg()" />
+    <label>OpenRouter APIキー</label>
+    <input type="password" id="apiKey" placeholder="sk-or-..." oninput="saveCfg()" />
+    <div class="test">
+      <button onclick="testConn()">接続テスト</button>
+      <span class="status" id="testStatus"></span>
+    </div>
+    <div class="hint">キーはこのブラウザ内にのみ保存され、外部には送信しません（デモ用）。本番はサーバー側で安全に保持します。未入力でもナレッジ照合モードで動作します。</div>
+  </div>
+
+  <div class="notice">デモ用モックです。回答は同梱FAQ（パスワード／VPN・Wi-Fi／メール／ポータル／印刷／申請）に基づきます。URL・窓口等は実データへ差し替え前提です。</div>
+
+  <div class="chat" id="chat"></div>
+
+  <div class="chips" id="chips">
+    <span>試してみる（クリックで送信）：</span>
+  </div>
+
+  <div class="inputbar">
+    <input id="q" type="text" placeholder="質問を入力（例：パスワードを忘れた）" onkeydown="if(event.key==='Enter')send()" />
+    <button onclick="send()">送信</button>
+  </div>
+  <footer>NBU ITヘルプデスク一次対応Bot デモ v1.0 — 回答は同梱ナレッジに基づく（実データ差し替え前提）</footer>
+</div>
+
+<script>
+// ===== ナレッジベース（実データ差し替え前提）=====
+const KB = [
+  { cat:"パスワード", q:"パスワードを忘れた", tags:["パスワード","password","忘れ","わすれ","リセット","再設定","ログインできない","入れない"],
+    a:["ポータルのログイン画面から、ご自身で再設定できます。","1. ポータルのログイン画面を開く","2. 「パスワードを忘れた方はこちら」をクリック","3. 学籍番号／教職員番号と登録済みメールを入力","4. 届いたメールのリンクから新しいパスワードを設定"], src:"学内ポータル利用マニュアル p.4" },
+  { cat:"パスワード", q:"パスワードの文字数・条件", tags:["パスワード","条件","文字数","ルール","要件","何文字"],
+    a:["8文字以上で、英大文字・英小文字・数字をそれぞれ1つ以上含めてください。過去3回に使用したパスワードは再利用できません。"], src:"情報システム利用ガイドライン §2.3" },
+  { cat:"パスワード", q:"有効期限", tags:["有効期限","期限","いつ変更","変更時期"],
+    a:["180日ごとに変更が必要です。期限の14日前からログイン時に変更を促す通知が表示されます。"], src:"情報システム利用ガイドライン §2.4" },
+  { cat:"パスワード", q:"アカウントがロックされた", tags:["ロック","ロックされた","失敗","入れない","施錠","何回"],
+    a:["パスワードを連続5回間違えると、セキュリティのため30分間ロックされます。","30分後に自動解除されるので、正しいパスワードで再度ログインしてください。","お急ぎで即時解除が必要な場合は、本人確認のうえ担当者が対応します。"], src:"情報システム利用ガイドライン §2.5" },
+  { cat:"パスワード", q:"学務・メール・Wi-Fiは同じパスワードか", tags:["同じ","別","共通","シングルサインオン","sso","学務","まとめて"],
+    a:["NBUアカウント（シングルサインオン）で、学務・メール・学内Wi-Fi・ポータルは同じID/パスワードで利用できます。個別のパスワードはありません。"], src:"情報システム利用ガイドライン §1.2" },
+  { cat:"パスワード", q:"パスワードを変更したい", tags:["変更","変えたい","かえる"],
+    a:["ポータルにログイン後、右上メニュー「アカウント設定」→「パスワード変更」から変更できます。","変更後は各端末の保存済みパスワード（Wi-Fi・メール）も更新してください。"], src:"学内ポータル利用マニュアル p.5" },
+  { cat:"VPN", q:"VPNにつながらない", tags:["vpn","つながらない","繋がらない","接続できない","接続"],
+    a:["上から順にお試しください。","1. 他サイトが開くか（ネット自体の確認）","2. VPNクライアントを再起動して接続し直す","3. パスワード変更直後なら新しいパスワードで再入力","4. 別回線（テザリング等）で再試行","解決しない場合は、画面のエラー文言を添えて担当者へおつなぎします。"], src:"リモートアクセス手順書 p.2" },
+  { cat:"VPN", q:"VPNの初期設定・インストール", tags:["vpn","インストール","初期設定","設定","クライアント","入れ方"],
+    a:["情報システム部が配布する「NBU VPN」クライアントを利用します。","1. ポータル「ソフトウェア配布」からダウンロード","2. 接続先サーバーを入力","3. NBUアカウントでサインイン"], src:"リモートアクセス手順書 p.1" },
+  { cat:"VPN", q:"VPNが遅い・頻繁に切れる", tags:["vpn","遅い","切れる","不安定","重い","途切れ"],
+    a:["電波の弱い場所や回線混雑で切れやすくなります。","・有線接続や電波の良い場所での利用","・不要なアプリの終了","改善しない場合は接続時間帯・回線環境を添えて担当者へおつなぎします。"], src:"リモートアクセス手順書 p.5" },
+  { cat:"Wi-Fi", q:"学内Wi-Fiにつながらない", tags:["wifi","wi-fi","無線","ssid","ネット","つながらない","繋がらない"],
+    a:["学内Wi-Fiは SSID「NBU-WiFi」に接続し、NBUアカウントで認証します。","1. Wi-Fi一覧から「NBU-WiFi」を選択","2. NBUアカウントで認証","3. 証明書の確認が出たら「信頼」して接続","パスワード変更後は保存された古い情報を削除して再入力してください。"], src:"学内ネットワーク利用マニュアル p.3" },
+  { cat:"VPN", q:"自宅から学務システムにアクセスしたい", tags:["自宅","学外","リモート","家から","学務","アクセス"],
+    a:["学外から学内限定システムを使うにはVPN接続が必要です。VPNに接続した状態で、通常どおり学務システムのURLにアクセスしてください。"], src:"リモートアクセス手順書 p.4" },
+  { cat:"メール", q:"大学メールにログインできない", tags:["メール","mail","ログイン","入れない","サインイン"],
+    a:["メールはNBUアカウント（シングルサインオン）でログインします。","1. Webメールを開く","2. NBUアカウントでサインイン","パスワードを忘れた場合は先にポータルで再設定してください。"], src:"メール利用マニュアル p.1" },
+  { cat:"メール", q:"スマホで大学メールを受信したい", tags:["スマホ","スマートフォン","iphone","android","携帯","受信","設定","メール"],
+    a:["メールアプリでアカウントを追加します。","1. 「アカウント追加」を選択","2. メールアドレスとパスワードを入力","3. 自動設定されない場合は受信(IMAP)/送信(SMTP)サーバーを手動入力"], src:"メール利用マニュアル p.3" },
+  { cat:"メール", q:"メールが届かない・送れない", tags:["届か","届き","届","送れ","送信できない","受信できない","来ない","メール"],
+    a:["まず次を確認してください。","1. 迷惑メールフォルダに振り分けられていないか","2. 受信ボックスの容量が上限に達していないか","3. 送信先アドレスに誤りがないか","特定の相手とだけ送受信できない・エラーが返る場合は、エラー文面を添えて担当者へおつなぎします。"], src:"メール利用マニュアル p.5" },
+  { cat:"メール", q:"メールの容量", tags:["容量","クォータ","いっぱい","上限","足りない"],
+    a:["1人あたり15GBです。上限に近づくと警告メールが届きます。不要なメール・大容量添付を削除して空き容量を確保してください。"], src:"メール利用マニュアル p.6" },
+  { cat:"ポータル", q:"ポータルにログインできない・表示が崩れる", tags:["ポータル","portal","表示","崩れる","開かない"],
+    a:["ポータルはNBUアカウントでログインします。","表示が崩れる場合はブラウザのキャッシュ削除、または別ブラウザ（Chrome/Edge最新版）でお試しください。"], src:"学内ポータル利用マニュアル p.2" },
+  { cat:"印刷", q:"学内プリンタで印刷できない", tags:["印刷","プリンタ","プリンター","print","刷れない","出ない","コピー機"],
+    a:["次の順にご確認ください。","1. プリンタの電源・用紙・トナー残量を確認","2. 正しいプリンタ（設置場所名）が選択されているか確認","3. 印刷キューに残ったジョブを一度削除して再送信","4. ドライバ未導入の場合はポータル「ソフトウェア配布」から導入","改善しない場合は設置場所と症状を添えて担当者へおつなぎします。"], src:"印刷サービス利用手順書 p.2" },
+  { cat:"申請", q:"各種申請の窓口・様式を知りたい", tags:["申請","手続き","どこ","やり方","方法","様式","フォーム","届出"],
+    a:["各種申請は学内ポータルの「申請・手続き」からオンラインで受け付けています。","1. ポータル「申請・手続き」を開く","2. 該当する様式を選んで入力・提出","窓口対応が必要な手続きは、案内に沿って担当窓口へお進みください。"], src:"事務手続き案内 p.1" },
+];
+
+// 強制エスカレーション（Botで完結させず担当者へ）
+const ESCALATE = [
+  { re:/(登録).*(メール|アドレス).*(使え|届か|変わ|受け取れ)/, why:"登録メールが使用不可でパスワードリセット不能（本人確認が必要）" },
+  { re:/(リセット|パスワード).*(メール).*(届か|受け取れ|来ない)/, why:"リセットメールが受け取れない（本人確認が必要）" },
+  { re:/(ロック).*(解除|急ぎ|今すぐ)|今すぐ.*解除/, why:"アカウントロックの即時解除依頼（本人確認が必要）" },
+  { re:/(障害|全員|みんな|誰も|複数).*(つながらない|使えない|ログインできない|落ちて)/, why:"広範な障害の疑い（複数利用者に影響）" },
+  { re:/(転送).*(設定|したい)|メール転送/, why:"メール転送など恒久設定の依頼（規程確認が必要）" },
+  { re:/(フィッシング|迷惑メール|怪しいメール|詐欺メール)/, why:"迷惑メール・フィッシングの疑い（通報対応）" },
+  { re:/(プリンタ|プリンター|印刷機|コピー機).*(故障|壊れ|紙詰まり|動かない)/, why:"プリンタのハードウェア故障の疑い（現地対応が必要）" },
+];
+
+const CHIPS = [
+  "NBUのパスワードを忘れちゃった。どうすればいい？",
+  "自宅からVPNにつながらないです",
+  "スマホで大学メールを見る設定を教えて",
+  "学内プリンタで印刷できない",
+  "各種申請ってどこからやるの？",
+  "登録してるメールアドレスがもう使えなくて、リセットメールが受け取れません",
+];
+
+// ===== 検索エンジン（ナレッジ照合）=====
+function norm(s){ return (s||"").toLowerCase().replace(/[\s、。！？!?.,・「」（）()]/g,""); }
+function retrieve(query){
+  const nq = norm(query);
+  let best=null, bestScore=0;
+  for(const e of KB){
+    let score=0;
+    for(const t of e.tags){ if(nq.includes(norm(t))) score += norm(t).length>=3?2:1; }
+    if(nq.includes(norm(e.q))) score += 3;
+    if(score>bestScore){ bestScore=score; best=e; }
+  }
+  return { best, score:bestScore };
+}
+function checkEscalation(query){ for(const x of ESCALATE){ if(x.re.test(query)) return x.why; } return null; }
+
+// ===== 画面描画 =====
+const chat = document.getElementById('chat');
+function el(html){ const d=document.createElement('div'); d.innerHTML=html; return d.firstElementChild; }
+function scrollBottom(){ chat.scrollTop = chat.scrollHeight; }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function addUser(text){ chat.appendChild(el(`<div class="row user"><div class="bubble">${esc(text)}</div><div class="avatar user">あ</div></div>`)); scrollBottom(); }
+function addBot(lines, src){
+  const body = lines.map(esc).join("<br>");
+  const s = src? `<span class="src">出典：${esc(src)}</span>` : "";
+  chat.appendChild(el(`<div class="row bot"><div class="avatar bot">Bot</div><div class="bubble"><div class="name">NBUヘルプデスクBot</div>${body}${s}</div></div>`)); scrollBottom();
+}
+function addSolvePrompt(){
+  const node = el(`<div class="row bot"><div class="avatar bot">Bot</div><div class="bubble"><div class="name">NBUヘルプデスクBot</div>解決しましたか？
+    <div class="feedback"><button onclick="solved(this,true)">はい、解決した</button><button onclick="solved(this,false)">いいえ</button></div></div></div>`);
+  chat.appendChild(node); scrollBottom();
+}
+function solved(btn,ok){ const fb=btn.parentElement; fb.remove(); if(ok){ addBot(["よかったです。またいつでもどうぞ。（対応ログを記録しました）"]); } else { escalate("Bot案内では解決せず（利用者が「いいえ」を選択）"); } }
+function escalate(why){
+  addBot(["承知しました。担当者におつなぎしますので、順次ご連絡します。"]);
+  const now=new Date();
+  const t=`${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  chat.appendChild(el(`<div class="row bot"><div class="avatar bot">↗</div><div class="esc">
+    <div class="t">担当者チャンネルへ自動連携</div>
+    <div>投稿先：<span class="chan">#helpdesk-escalation</span></div>
+    <div class="card">🔔 エスカレーション<br>利用者：（デモ利用者） / ${t}<br>要約：${esc(why)}<br>Bot対応：一次案内を実施済み<br>状態：担当者の対応待ち</div>
+  </div></div>`)); scrollBottom();
+}
+function typing(){ const n=el(`<div class="row bot"><div class="avatar bot">Bot</div><div class="bubble typing">入力中…</div></div>`); chat.appendChild(n); scrollBottom(); return n; }
+
+// ===== 送信処理 =====
+let busy=false;
+async function send(text){
+  const input=document.getElementById('q');
+  const query=(text!==undefined? text : input.value).trim();
+  if(!query || busy) return;
+  input.value=""; addUser(query); busy=true;
+  const t=typing();
+  const why=checkEscalation(query);
+  if(why){ t.remove(); escalate(why); busy=false; return; }
+  const cfg=getCfg();
+  if(cfg.useLLM && cfg.apiKey && cfg.model){
+    try {
+      const {best}=retrieve(query);
+      const ctx=best? `FAQ: ${best.q}\n${best.a.join("\n")}\n出典：${best.src}` : "（該当FAQなし）";
+      const ans=await askLLM(query, ctx, cfg);
+      t.remove();
+      if(ans.trim()==="ESCALATE"){ escalate("FAQに該当がなく確信度が低いためエスカレーション"); }
+      else { addBot(ans.split("\n"), best? best.src : null); addSolvePrompt(); }
+    } catch(e){ t.remove(); addBot(["（LLM接続でエラー："+e.message+"。ナレッジ照合に切り替えます）"]); fallback(query); }
+    busy=false; return;
+  }
+  setTimeout(()=>{ t.remove(); fallback(query); busy=false; }, 350);
+}
+function fallback(query){
+  const {best,score}=retrieve(query);
+  if(!best || score<2){ escalate("該当するFAQが見つからず、確信度が低いためエスカレーション"); return; }
+  addBot(["【回答】", ...best.a], best.src); addSolvePrompt();
+}
+async function callOpenRouter(messages, cfg){
+  const r=await fetch("https://openrouter.ai/api/v1/chat/completions",{
+    method:"POST", headers:{ "Authorization":"Bearer "+cfg.apiKey, "Content-Type":"application/json" },
+    body:JSON.stringify({ model:cfg.model, messages, temperature:0.2 })
+  });
+  if(!r.ok){
+    const map={401:"APIキーが無効です",402:"クレジット残高が不足しています",429:"レート制限に達しました",404:"モデル名が見つかりません"};
+    throw new Error(map[r.status]||("HTTP "+r.status));
+  }
+  return (await r.json()).choices[0].message.content;
+}
+async function askLLM(query, ctx, cfg){
+  const sys="あなたは日本文理大学のITヘルプデスク一次対応です。次のFAQコンテキストの内容だけを根拠に、日本語で丁寧・簡潔に回答してください。手順は番号付きで示し、最後に必ず『出典：...』を付けてください。FAQで答えられない・確信が持てない場合は、余計な文章を出さず『ESCALATE』とだけ出力してください。推測で事実を作らないこと。";
+  return callOpenRouter([{role:"system",content:sys},{role:"user",content:`FAQコンテキスト:\n${ctx}\n\n質問: ${query}`}], cfg);
+}
+async function testConn(){
+  const s=document.getElementById('testStatus'); const cfg=getCfg();
+  if(!cfg.apiKey){ s.className="status ng"; s.textContent="APIキーを入力してください"; return; }
+  s.className="status"; s.textContent="接続中…";
+  try{ await callOpenRouter([{role:"user",content:"ping"}], cfg); s.className="status ok"; s.textContent="✓ 接続成功（"+cfg.model+"）"; }
+  catch(e){ s.className="status ng"; s.textContent="✗ "+e.message; }
+}
+
+// ===== 設定 =====
+function currentModel(){ const sel=document.getElementById('modelSel').value; return sel==="__custom"? document.getElementById('modelCustom').value.trim() : sel; }
+function getCfg(){ return { useLLM:document.getElementById('useLLM').checked, apiKey:document.getElementById('apiKey').value.trim(), model:currentModel() }; }
+function onModelSel(){ document.getElementById('modelCustom').style.display = document.getElementById('modelSel').value==="__custom"? "block":"none"; saveCfg(); }
+function refreshMode(){ const c=getCfg(); const b=document.getElementById('modeBadge'); const on=c.useLLM&&c.apiKey&&c.model; b.textContent=on?"LLMモード":"照合モード"; b.style.background=on?"rgba(120,220,150,.30)":"rgba(255,255,255,.15)"; }
+function saveCfg(){ refreshMode(); try{ localStorage.setItem('nbu_cfg', JSON.stringify({useLLM:document.getElementById('useLLM').checked, apiKey:document.getElementById('apiKey').value.trim(), modelSel:document.getElementById('modelSel').value, modelCustom:document.getElementById('modelCustom').value.trim()})); }catch(e){} }
+function loadCfg(){ try{ const c=JSON.parse(localStorage.getItem('nbu_cfg')||'{}'); if(c.apiKey)document.getElementById('apiKey').value=c.apiKey; if(c.modelSel)document.getElementById('modelSel').value=c.modelSel; if(c.modelCustom)document.getElementById('modelCustom').value=c.modelCustom; if(c.useLLM)document.getElementById('useLLM').checked=true; }catch(e){} onModelSel(); refreshMode(); }
+function toggleSettings(){ document.getElementById('settings').classList.toggle('open'); }
+
+// ===== 初期化 =====
+(function init(){
+  const chips=document.getElementById('chips');
+  CHIPS.forEach(c=>{ const b=document.createElement('button'); b.className='chip'; b.textContent=c; b.onclick=()=>send(c); chips.appendChild(b); });
+  loadCfg();
+  addBot(["こんにちは。NBU ITヘルプデスクの一次対応Botです。","パスワード・VPN／Wi-Fi・メール／ポータル・印刷・各種申請について、24時間その場でお答えします。","下のボタンから試すか、質問を入力してください。"]);
+})();
+</script>
+</body>
+</html>
