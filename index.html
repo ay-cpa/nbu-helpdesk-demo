@@ -134,7 +134,7 @@
       <div class="hint">キーはこのブラウザ内にのみ保存され、外部には送信しません（デモ用）。本番はサーバー側で安全に保持します。未入力でもナレッジ照合モードで動作します。</div>
     </div>
 
-    <div class="disc">これは実データ差し替え前提のデモです。回答は同梱FAQ（パスワード／VPN・Wi-Fi／メール／ポータル／印刷／申請）に基づきます。</div>
+    <div class="disc">デモ版です。回答は同梱FAQに基づきます（実データ差し替え前提）。</div>
 
     <div class="chat" id="chat"></div>
 
@@ -305,7 +305,7 @@ function toggleSettings(){ document.getElementById('settings').classList.toggle(
   const chips=document.getElementById('chips');
   CHIPS.forEach(c=>{ const b=document.createElement('button'); b.className='chip'; b.textContent=c; b.onclick=()=>send(c); chips.appendChild(b); });
   loadCfg();
-  addBot(["こんにちは。日本文理大学 ITヘルプデスクのAIアシスタントです。","パスワード・VPN／Wi-Fi・メール／ポータル・印刷・各種申請について、24時間その場でお答えします。","下のボタンから試すか、メッセージを入力してください。"]);
+  addBot(["こんにちは。NBU ITヘルプデスクのAIアシスタントです。","24時間その場でお答えします。下のボタン、または入力欄からどうぞ。"]);
 })();
 </script>
 </body>
