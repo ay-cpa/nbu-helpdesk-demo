@@ -100,7 +100,8 @@
 <script>
 const KB = [
   { cat:"パスワード", q:"パスワードを忘れた", tags:["パスワード","password","忘れ","わすれ","リセット","再設定","ログインできない","入れない"],
-    a:["ポータルのログイン画面から、ご自身で再設定できます。","1. ポータルのログイン画面を開く","2. 「パスワードを忘れた方はこちら」をクリック","3. 学籍番号／教職員番号と登録済みメールを入力","4. 届いたメールのリンクから新しいパスワードを設定"], src:"学内ポータル利用マニュアル p.4" },
+    a:["ポータルのログイン画面から、ご自身で再設定できます。","1. ポータルのログイン画面を開く","2. 「パスワードを忘れた方はこちら」をクリック","3. 学籍番号／教職員番号と登録済みメールを入力","4. 届いたメールのリンクから新しいパスワードを設定"], src:"学内ポータル利用マニュアル p.4",
+    action:{ label:"リセット用メールを送信する（AIが実行）", done:"リセット用メールを送信しました（登録アドレス宛）", detail:"届いたメールのリンクから新しいパスワードを設定してください。※デモのため実際の送信は行いません。本番はSSOで本人確認のうえ、認証システムから自動送信します。" } },
   { cat:"パスワード", q:"パスワードの文字数・条件", tags:["パスワード","条件","文字数","ルール","要件","何文字"],
     a:["8文字以上で、英大文字・英小文字・数字をそれぞれ1つ以上含めてください。過去3回に使用したパスワードは再利用できません。"], src:"情報システム利用ガイドライン §2.3" },
   { cat:"パスワード", q:"アカウントがロックされた", tags:["ロック","ロックされた","失敗","入れない","施錠","何回"],
@@ -169,13 +170,15 @@ async function send(text){
   const cfg=getCfg();
   if(cfg.useLLM&&cfg.apiKey&&cfg.model){
     try{ const {best}=retrieve(q); const ctx=best?`FAQ: ${best.q}\n${best.a.join("\n")}\n出典：${best.src}`:"（該当FAQなし）"; const ans=await askLLM(q,ctx,cfg); t.remove();
-      if(ans.trim()==="ESCALATE"){ escalate("FAQに該当がなく確信度が低いためエスカレーション"); } else { addBot(ans.split("\n"), best?best.src:null); addSolvePrompt(); } }
+      if(ans.trim()==="ESCALATE"){ escalate("FAQに該当がなく確信度が低いためエスカレーション"); } else { addBot(ans.split("\n"), best?best.src:null); if(best&&best.action){ addAction(best.action); } else { addSolvePrompt(); } } }
     catch(e){ t.remove(); addBot(["（LLM接続でエラー："+e.message+"。ナレッジ照合に切り替えます）"]); fallback(q); }
     busy=false; return;
   }
   setTimeout(()=>{ t.remove(); fallback(q); busy=false; },450);
 }
-function fallback(q){ const {best,score}=retrieve(q); if(!best||score<2){ escalate("該当するFAQが見つからず、確信度が低いためエスカレーション"); return; } addBot(["【回答】",...best.a], best.src); addSolvePrompt(); }
+function fallback(q){ const {best,score}=retrieve(q); if(!best||score<2){ escalate("該当するFAQが見つからず、確信度が低いためエスカレーション"); return; } addBot(["【回答】",...best.a], best.src); if(best.action){ addAction(best.action); } else { addSolvePrompt(); } }
+function addAction(action){ const n=el(`<div class="a"><div class="lb"><span class="mono">NBU</span><span class="nm">NBUヘルプデスク</span></div><div class="bx">このお手続きは、AIがその場で代行できます。<div class="fb"><button onclick="doAction(this)" data-done="${esc(action.done)}" data-detail="${esc(action.detail)}">${esc(action.label)}</button></div></div></div>`); chat.appendChild(n); scrollBottom(); }
+function doAction(btn){ const done=btn.getAttribute('data-done'), detail=btn.getAttribute('data-detail'); btn.closest('.a').remove(); const n=el(`<div class="a"><div class="lb"><span class="mono" style="border-color:var(--g);color:var(--g)">✓</span><span class="nm">実行結果</span></div><div class="bx" style="background:#e7f5ea;"><b style="color:var(--g2)">✅ ${esc(done)}</b><br>${esc(detail)}</div></div>`); chat.appendChild(n); scrollBottom(); addSolvePrompt(); }
 async function callOpenRouter(messages,cfg){ const r=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",headers:{"Authorization":"Bearer "+cfg.apiKey,"Content-Type":"application/json"},body:JSON.stringify({model:cfg.model,messages,temperature:0.2})}); if(!r.ok){ const m={401:"APIキーが無効です",402:"クレジット残高が不足しています",429:"レート制限に達しました",404:"モデル名が見つかりません"}; throw new Error(m[r.status]||("HTTP "+r.status)); } return (await r.json()).choices[0].message.content; }
 async function askLLM(q,ctx,cfg){ const sys="あなたは日本文理大学のITヘルプデスク一次対応です。次のFAQコンテキストの内容だけを根拠に、日本語で丁寧・簡潔に回答してください。手順は番号付きで示し、最後に必ず『出典：...』を付けてください。FAQで答えられない・確信が持てない場合は、余計な文章を出さず『ESCALATE』とだけ出力してください。推測で事実を作らないこと。"; return callOpenRouter([{role:"system",content:sys},{role:"user",content:`FAQコンテキスト:\n${ctx}\n\n質問: ${q}`}],cfg); }
 async function testConn(){ const s=document.getElementById('testStatus'); const cfg=getCfg(); if(!cfg.apiKey){ s.className="status ng"; s.textContent="APIキーを入力してください"; return; } s.className="status"; s.textContent="接続中…"; try{ await callOpenRouter([{role:"user",content:"ping"}],cfg); s.className="status ok"; s.textContent="✓ 接続成功（"+cfg.model+"）"; }catch(e){ s.className="status ng"; s.textContent="✗ "+e.message; } }
