@@ -167,7 +167,8 @@
 <script>
 const KB = [
   { cat:"パスワード", q:"パスワードを忘れた", tags:["パスワード","password","忘れ","わすれ","リセット","再設定","ログインできない","入れない"],
-    a:["ポータルのログイン画面から、ご自身で再設定できます。","1. ポータルのログイン画面を開く","2. 「パスワードを忘れた方はこちら」をクリック","3. 学籍番号／教職員番号と登録済みメールを入力","4. 届いたメールのリンクから新しいパスワードを設定"], src:"学内ポータル利用マニュアル p.4" },
+    a:["ポータルのログイン画面から、ご自身で再設定できます。","1. ポータルのログイン画面を開く","2. 「パスワードを忘れた方はこちら」をクリック","3. 学籍番号／教職員番号と登録済みメールを入力","4. 届いたメールのリンクから新しいパスワードを設定"], src:"学内ポータル利用マニュアル p.4",
+    action:{ label:"リセット用メールを送信する（AIが実行）", done:"リセット用メールを送信しました（登録アドレス宛）", detail:"届いたメールのリンクから新しいパスワードを設定してください。※デモのため実際の送信は行いません。本番はSSOで本人確認のうえ、認証システムから自動送信します。" } },
   { cat:"パスワード", q:"パスワードの文字数・条件", tags:["パスワード","条件","文字数","ルール","要件","何文字"],
     a:["8文字以上で、英大文字・英小文字・数字をそれぞれ1つ以上含めてください。過去3回に使用したパスワードは再利用できません。"], src:"情報システム利用ガイドライン §2.3" },
   { cat:"パスワード", q:"有効期限", tags:["有効期限","期限","いつ変更","変更時期"],
@@ -278,7 +279,7 @@ async function send(text){
       const ans=await askLLM(query, ctx, cfg);
       t.remove();
       if(ans.trim()==="ESCALATE"){ escalate("FAQに該当がなく確信度が低いためエスカレーション"); }
-      else { addBot(ans.split("\n"), best? best.src : null); addSolvePrompt(); }
+      else { addBot(ans.split("\n"), best? best.src : null); if(best&&best.action){ addAction(best.action); } else { addSolvePrompt(); } }
     }catch(e){ t.remove(); addBot(["（LLM接続でエラー："+e.message+"。ナレッジ照合に切り替えます）"]); fallback(query); }
     busy=false; return;
   }
@@ -287,7 +288,18 @@ async function send(text){
 function fallback(query){
   const {best,score}=retrieve(query);
   if(!best || score<2){ escalate("該当するFAQが見つからず、確信度が低いためエスカレーション"); return; }
-  addBot(["【回答】", ...best.a], best.src); addSolvePrompt();
+  addBot(["【回答】", ...best.a], best.src);
+  if(best.action){ addAction(best.action); } else { addSolvePrompt(); }
+}
+function addAction(action){
+  const node=el(`<div class="row bot"><div class="amono">NBU</div><div class="col"><div class="name">ITヘルプデスク</div><div class="bubble">このお手続きは、AIがその場で代行できます。<div class="feedback"><button onclick="doAction(this)" data-done="${esc(action.done)}" data-detail="${esc(action.detail)}">${esc(action.label)}</button></div></div></div></div>`);
+  chat.appendChild(node); scrollBottom();
+}
+function doAction(btn){
+  const done=btn.getAttribute('data-done'), detail=btn.getAttribute('data-detail');
+  btn.closest('.row').remove();
+  const node=el(`<div class="row bot"><div class="amono">✓</div><div class="col"><div class="name">実行結果</div><div class="bubble" style="background:#eef7f0;border-color:#bfe0c9;"><b style="color:#1E7145;">✅ ${esc(done)}</b><br>${esc(detail)}</div><div class="meta">${nowt()}</div></div></div>`);
+  chat.appendChild(node); scrollBottom(); addSolvePrompt();
 }
 async function callOpenRouter(messages, cfg){
   const r=await fetch("https://openrouter.ai/api/v1/chat/completions",{ method:"POST",
