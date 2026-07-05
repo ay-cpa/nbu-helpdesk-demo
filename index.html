@@ -87,7 +87,17 @@
   .settings .status{font-size:12px;} .settings .status.ok{color:var(--ok);} .settings .status.ng{color:#b3261e;}
   .settings .hint{color:#7a828c;font-size:11.5px;margin-top:8px;line-height:1.5;}
   .modebadge{margin-left:6px;font-size:10.5px;padding:2px 8px;border-radius:11px;background:rgba(255,255,255,.16);color:#dbe6f6;}
-  @media(max-width:600px){.portal nav{display:none;}.widget{height:calc(100vh - 120px);border-radius:12px;}}
+  @media(max-width:600px){
+    html,body{height:100%;margin:0;}
+    body{display:flex;flex-direction:column;height:100dvh;overflow:hidden;background:#fff;}
+    .portal{flex:none;} .portal nav{display:none;} .portal .inner{padding:8px 12px;}
+    .crumbs{display:none;}
+    .page{padding:0;max-width:100%;flex:1;min-height:0;display:flex;}
+    .widget{flex:1;min-height:0;height:auto;border-radius:0;border:none;box-shadow:none;max-width:100%;}
+    .whead{padding:10px 12px;} .whead .status{font-size:10.5px;} .disc{padding:6px 12px;}
+    .chat{padding:12px;} .composer{padding:9px 12px;} .composer input{padding:9px 13px;}
+    .wfoot{padding:6px 10px;font-size:10px;line-height:1.4;}
+  }
 </style>
 </head>
 <body>
